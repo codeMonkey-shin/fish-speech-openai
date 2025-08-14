@@ -199,20 +199,3 @@ async def openai_tts(req: Annotated[OpenAITTSRequest, Body(exclusive=True)]):
         iterable=buffer_to_async_generator(buffer.getvalue()),
         content_type=get_content_type(fish_req.format),
     )
-    else:
-        fake_audios = next(inference(req, engine))
-        buffer = io.BytesIO()
-        sf.write(
-            buffer,
-            fake_audios,
-            sample_rate,
-            format=req.format,
-        )
-
-        return StreamResponse(
-            iterable=buffer_to_async_generator(buffer.getvalue()),
-            headers={
-                "Content-Disposition": f"attachment; filename=audio.{req.format}",
-            },
-            content_type=get_content_type(req.format),
-        )
