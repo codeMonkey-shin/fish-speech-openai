@@ -2,8 +2,17 @@
 
 ## 1. 레퍼런스 음성 파일 준비
 
-다음과 같은 구조로 파일을 준비하세요:
+**권장 방식 (직접 파일):**
+```
+references/
+├── test1.mp3
+├── test1.lab
+├── speaker2.wav
+├── speaker2.lab
+└── korean_voice.flac
+```
 
+**기존 방식 (폴더, 하위 호환성):**
 ```
 references/
 ├── test1/
@@ -13,18 +22,16 @@ references/
 │   └── sample2.lab
 └── speaker2/
     ├── voice1.mp3
-    ├── voice1.lab
-    ├── voice2.mp3
-    └── voice2.lab
+    └── voice1.lab
 ```
 
 ## 2. .lab 파일 내용 예시
 
 ```
-# sample1.lab
+# test1.lab
 안녕하세요, 저는 테스트 화자입니다.
 
-# sample2.lab  
+# speaker2.lab
 이것은 두 번째 샘플 음성입니다.
 ```
 
@@ -56,5 +63,15 @@ curl -X POST "http://localhost:8080/v1/tts" \
 ## 4. 동작 방식
 
 - OpenAI API의 `voice: "test1"` → Fish Speech의 `reference_id: "test1"`로 변환
-- `references/test1/` 폴더의 모든 오디오 파일을 레퍼런스로 사용
+- **우선순위 1**: `references/test1.mp3` (또는 .wav, .flac 등) 직접 파일 사용
+- **우선순위 2**: `references/test1/` 폴더의 모든 오디오 파일 사용 (하위 호환성)
 - 같은 이름의 `.lab` 파일이 있으면 텍스트 프롬프트로 함께 사용
+
+## 5. 파일 우선순위
+
+시스템은 다음 순서로 파일을 찾습니다:
+1. `references/test1.mp3`
+2. `references/test1.wav`
+3. `references/test1.flac`
+4. ... (기타 지원 확장자)
+5. `references/test1/` 폴더 내 파일들 (폴백)

@@ -45,11 +45,23 @@ class ReferenceLoader:
     ) -> Tuple:
 
         # Load the references audio and text by id
-        ref_folder = Path("references") / id
-        ref_folder.mkdir(parents=True, exist_ok=True)
-        ref_audios = list_files(
-            ref_folder, AUDIO_EXTENSIONS, recursive=True, sort=False
-        )
+        # 먼저 references/{id}.mp3, references/{id}.wav 등 직접 파일을 찾음
+        ref_audios = []
+        
+        # 지원되는 오디오 확장자로 직접 파일 찾기
+        for ext in AUDIO_EXTENSIONS:
+            potential_file = Path("references") / f"{id}.{ext}"
+            if potential_file.exists():
+                ref_audios.append(potential_file)
+                break  # 첫 번째로 찾은 파일만 사용
+        
+        # 직접 파일이 없으면 기존 방식(폴더)으로 폴백
+        if not ref_audios:
+            ref_folder = Path("references") / id
+            ref_folder.mkdir(parents=True, exist_ok=True)
+            ref_audios = list_files(
+                ref_folder, AUDIO_EXTENSIONS, recursive=True, sort=False
+            )
 
         if use_cache == "off" or id not in self.ref_by_id:
             # If the references are not already loaded, encode them
