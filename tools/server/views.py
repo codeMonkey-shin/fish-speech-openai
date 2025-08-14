@@ -141,12 +141,15 @@ def convert_openai_to_fish_request(openai_req: OpenAITTSRequest) -> ServeTTSRequ
     
     audio_format = format_mapping.get(openai_req.response_format, "wav")
     
-    # 모델과 음성은 무시하고 기존 Fish Speech 방식으로 랜덤 생성
+    # voice 파라미터를 reference_id로 사용
+    # 예: voice="test1" -> references/test1/ 폴더에서 파일들을 찾음
+    reference_id = openai_req.voice if openai_req.voice else None
+    
     return ServeTTSRequest(
         text=openai_req.input,
         format=audio_format,
-        reference_id=None,  # 랜덤 생성을 위해 None
-        references=[],      # 빈 리스트로 랜덤 생성
+        reference_id=reference_id,  # voice 값을 reference_id로 사용
+        references=[],              # reference_id 사용 시 빈 리스트
         streaming=False,
         normalize=True,
     )
