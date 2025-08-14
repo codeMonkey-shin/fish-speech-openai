@@ -124,6 +124,24 @@ async def tts(req: Annotated[ServeTTSRequest, Body(exclusive=True)]):
             },
             content_type=get_content_type(req.format),
         )
+    else:
+        # Non-streaming response
+        fake_audios = next(inference(req, engine))
+        buffer = io.BytesIO()
+        sf.write(
+            buffer,
+            fake_audios,
+            sample_rate,
+            format=req.format,
+        )
+        
+        return StreamResponse(
+            iterable=buffer_to_async_generator(buffer.getvalue()),
+            headers={
+                "Content-Disposition": f"attachment; filename=audio.{req.format}",
+            },
+            content_type=get_content_type(req.format),
+        )
 
 
 def convert_openai_to_fish_request(openai_req: OpenAITTSRequest) -> ServeTTSRequest:
