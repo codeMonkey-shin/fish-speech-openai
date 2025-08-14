@@ -103,3 +103,15 @@ class ServeTTSRequest(BaseModel):
     class Config:
         # Allow arbitrary types for pytorch related types
         arbitrary_types_allowed = True
+
+
+# OpenAI Compatible TTS API Schemas
+class OpenAITTSRequest(BaseModel):
+    model: str = "tts-1"  # 어떤 모델명이든 허용하지만 기존 Fish Speech 모델 사용
+    input: str = Field(..., max_length=4096, description="The text to generate audio for")
+    voice: str = "alloy"  # 어떤 음성명이든 허용하지만 랜덤 생성
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = "mp3"
+    speed: Annotated[float, Field(ge=0.25, le=4.0, strict=True)] = 1.0
+
+    class Config:
+        arbitrary_types_allowed = True

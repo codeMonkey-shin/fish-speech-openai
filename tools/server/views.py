@@ -20,6 +20,7 @@ from loguru import logger
 from typing_extensions import Annotated
 
 from fish_speech.utils.schema import (
+    OpenAITTSRequest,
     ServeTTSRequest,
     ServeVQGANDecodeRequest,
     ServeVQGANDecodeResponse,
@@ -123,6 +124,81 @@ async def tts(req: Annotated[ServeTTSRequest, Body(exclusive=True)]):
             },
             content_type=get_content_type(req.format),
         )
+
+
+def convert_openai_to_fish_request(openai_req: OpenAITTSRequest) -> ServeTTSRequest:
+    """OpenAI TTS 요청을 Fish Speech TTS 요청으로 변환"""
+    
+    # response_format 매핑
+    format_mapping = {
+        "mp3": "mp3",
+        "opus": "wav",  # Fish Speech doesn't support opus, use wav
+        "aac": "wav",   # Fish Speech doesn't support aac, use wav
+        "flac": "wav",  # Fish Speech doesn't support flac, use wav
+        "wav": "wav",
+        "pcm": "pcm",
+    }
+    
+    audio_format = format_mapping.get(openai_req.response_format, "wav")
+    
+    # 모델과 음성은 무시하고 기존 Fish Speech 방식으로 랜덤 생성
+    return ServeTTSRequest(
+        text=openai_req.input,
+        format=audio_format,
+        reference_id=None,  # 랜덤 생성을 위해 None
+        references=[],      # 빈 리스트로 랜덤 생성
+        streaming=False,
+        normalize=True,
+    )
+
+
+@routes.http.post("/v1/audio/speech")
+async def openai_tts(req: Annotated[OpenAITTSRequest, Body(exclusive=True)]):
+    """OpenAI compatible TTS API endpoint"""
+    
+    # OpenAI 요청을 Fish Speech 요청으로 변환
+    fish_req = convert_openai_to_fish_request(req)
+    
+    # Get the model from the app
+    app_state = request.app.state
+    model_manager: ModelManager = app_state.model_manager
+    engine = model_manager.tts_inference_engine
+    sample_rate = engine.decoder_model.sample_rate
+
+    # Check if the text is too long (OpenAI limit is 4096 characters)
+    if len(req.input) > 4096:
+        raise HTTPException(
+            HTTPStatus.BAD_REQUEST,
+            content="Text is too long, max length is 4096 characters",
+        )
+
+    # Perform TTS using existing Fish Speech logic
+    fake_audios = next(inference(fish_req, engine))
+    buffer = io.BytesIO()
+    
+    # speed 조절 (간단한 구현)
+    if req.speed != 1.0:
+        # speed가 1.0이 아닌 경우, 샘플레이트를 조절하여 속도 변경 효과
+        adjusted_sample_rate = int(sample_rate * req.speed)
+        sf.write(
+            buffer,
+            fake_audios,
+            adjusted_sample_rate,
+            format=fish_req.format,
+        )
+    else:
+        sf.write(
+            buffer,
+            fake_audios,
+            sample_rate,
+            format=fish_req.format,
+        )
+
+    # OpenAI API는 바이너리 오디오 데이터를 직접 반환
+    return StreamResponse(
+        iterable=buffer_to_async_generator(buffer.getvalue()),
+        content_type=get_content_type(fish_req.format),
+    )
     else:
         fake_audios = next(inference(req, engine))
         buffer = io.BytesIO()
